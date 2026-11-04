@@ -541,6 +541,32 @@
   <div id="congregacoesList"></div>
 </section>
 
+<!-- Modal editar discurso -->
+<div id="editDiscModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center;">
+  <div style="background:var(--s1);border:1px solid var(--border2);border-radius:16px;padding:20px;width:min(420px,92vw);display:flex;flex-direction:column;gap:10px;">
+    <div style="font-weight:700;font-size:16px;">Editar discurso</div>
+    <input class="shared-input" id="editDiscData" type="date">
+    <input class="shared-input" id="editDiscTitulo" placeholder="Tema do discurso">
+    <input class="shared-input" id="editDiscOrador" placeholder="Orador">
+    <div style="display:flex;gap:8px">
+      <input class="shared-input" id="editDiscNumero" type="number" min="1" placeholder="Nº do tema" style="max-width:120px">
+      <input class="shared-input" id="editDiscHorario" placeholder="Horário">
+    </div>
+    <select class="shared-input" id="editDiscTipo">
+      <option value="">Sem tipo</option>
+      <option value="RECEBEREMOS">RECEBEREMOS</option>
+      <option value="ENVIAREMOS">ENVIAREMOS</option>
+    </select>
+    <select class="shared-input" id="editDiscCong">
+      <option value="">Selecionar congregação</option>
+    </select>
+    <div style="display:flex;gap:8px;margin-top:4px;">
+      <button class="btn-save" style="flex:1" onclick="saveEditDiscurso()">Salvar</button>
+      <button class="remove-btn" style="flex:1" onclick="closeEditDiscurso()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal editar congregação -->
 <div id="editCongModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center;">
   <div style="background:var(--s1);border:1px solid var(--border2);border-radius:16px;padding:20px;width:min(380px,90vw);display:flex;flex-direction:column;gap:12px;">
@@ -781,6 +807,45 @@ async function addCongregacao(e) {
   showToast('Congregação adicionada');
 }
 
+let editDiscId = null;
+function openEditDiscurso(id) {
+  const x = discursos.find(d => d.id === id);
+  if (!x) return;
+  editDiscId = id;
+  document.getElementById('editDiscData').value    = x.data || '';
+  document.getElementById('editDiscTitulo').value  = x.titulo || '';
+  document.getElementById('editDiscOrador').value  = x.orador || '';
+  document.getElementById('editDiscNumero').value  = x.numero || '';
+  document.getElementById('editDiscHorario').value = x.horario || '';
+  document.getElementById('editDiscTipo').value    = x.tipo || '';
+  const sel = document.getElementById('editDiscCong');
+  sel.innerHTML = '<option value="">Selecionar congregação</option>' +
+    congregacoes.map(c => `<option value="${c.id}"${c.id===x.congregacao_id?' selected':''}>${esc(c.nome)}</option>`).join('');
+  document.getElementById('editDiscModal').style.display = 'flex';
+}
+function closeEditDiscurso() {
+  document.getElementById('editDiscModal').style.display = 'none';
+  editDiscId = null;
+}
+async function saveEditDiscurso() {
+  const titulo  = document.getElementById('editDiscTitulo').value.trim();
+  if (!titulo) { showToast('Título obrigatório'); return; }
+  const payload = {
+    data:           document.getElementById('editDiscData').value,
+    titulo,
+    orador:         document.getElementById('editDiscOrador').value.trim() || null,
+    numero:         document.getElementById('editDiscNumero').value ? Number(document.getElementById('editDiscNumero').value) : null,
+    horario:        document.getElementById('editDiscHorario').value.trim() || null,
+    tipo:           document.getElementById('editDiscTipo').value || null,
+    congregacao_id: Number(document.getElementById('editDiscCong').value) || null,
+  };
+  const { error } = await sb.from('discursos').update(payload).eq('id', editDiscId);
+  if (error) { showToast('Não foi possível salvar'); return; }
+  closeEditDiscurso();
+  await loadDiscursos();
+  showToast('Discurso atualizado');
+}
+
 function copiarLink(id) {
   const base = location.href.split('?')[0];
   const url  = `${base}?cong=${id}`;
@@ -829,10 +894,16 @@ async function loadDiscursos() {
   discursos = data || [];
   const rows = discursos;
   document.getElementById('discursosList').innerHTML = rows.length
-    ? rows.map(x=>`<div class="shared-row"><div>
-        <strong>${esc(x.titulo||x.orador||'Sem tema informado')}</strong>
-        <small>${new Date(x.data+'T12:00:00').toLocaleDateString('pt-BR')}${x.tipo?' · '+esc(x.tipo):''} · ${esc(x.orador||'Orador não informado')}${x.numero?' · Tema '+x.numero:''}${x.horario?' · '+esc(x.horario):''}</small>
-      </div><button class="remove-btn" onclick="removeDiscurso(${x.id})">Excluir</button></div>`).join('')
+    ? rows.map(x=>`<div class="shared-row">
+        <div style="min-width:0;flex:1">
+          <strong>${esc(x.titulo||x.orador||'Sem tema informado')}</strong>
+          <small>${new Date(x.data+'T12:00:00').toLocaleDateString('pt-BR')}${x.tipo?' · '+esc(x.tipo):''} · ${esc(x.orador||'Orador não informado')}${x.numero?' · Nº '+x.numero:''}${x.horario?' · '+esc(x.horario):''}</small>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="remove-btn" style="color:var(--accent);border-color:var(--border2)" onclick="openEditDiscurso(${x.id})">Editar</button>
+          <button class="remove-btn" onclick="removeDiscurso(${x.id})">Excluir</button>
+        </div>
+      </div>`).join('')
     : '<p class="shared-note">Nenhum discurso cadastrado.</p>';
 }
 
