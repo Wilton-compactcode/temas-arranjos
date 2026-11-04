@@ -511,7 +511,11 @@
 </div>
 
 <section id="discursosPanel" class="shared-panel" hidden>
-  <h2>Discursos semanais</h2><p class="shared-note">Agenda compartilhada da congregação selecionada.</p>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+    <h2>Discursos semanais</h2>
+    <button onclick="gerarPDFDiscursos()" style="background:var(--s2);border:1px solid var(--border2);border-radius:10px;padding:8px 14px;color:var(--text2);font:inherit;font-size:13px;cursor:pointer">📄 PDF</button>
+  </div>
+  <p class="shared-note">Agenda compartilhada da congregação selecionada.</p>
   <form class="shared-form" onsubmit="addDiscurso(event)">
     <input class="shared-input" id="talkDate" type="date" required aria-label="Data">
     <input class="shared-input" id="talkSpeaker" placeholder="Orador">
@@ -635,6 +639,7 @@ const PRIO_COLOR = {
 
 // ── State ─────────────────────────────────────────────────────────────────
 let temas         = [];
+let discursos     = [];
 let activeNum     = null;
 let showOnlyNever = false;
 let searchTerm    = '';
@@ -821,7 +826,8 @@ async function loadDiscursos() {
   const { data, error } = await sb.from('discursos').select('*')
     .eq('congregacao_id', congregacaoId).order('data', { ascending: false });
   if (error) return;
-  const rows = data || [];
+  discursos = data || [];
+  const rows = discursos;
   document.getElementById('discursosList').innerHTML = rows.length
     ? rows.map(x=>`<div class="shared-row"><div>
         <strong>${esc(x.titulo||x.orador||'Sem tema informado')}</strong>
@@ -1142,6 +1148,97 @@ function gerarPDF() {
   <span style="font-size:11px;font-weight:600;color:#333;margin-right:4px">Legenda:</span>
   ${Object.entries(PRIO_COLOR_PDF).map(([k,c])=>`<div class="legend-item"><div class="dot" style="background:${c}"></div>${PRIO_LABEL[k]}</div>`).join('')}
 </div>
+<div class="footer">Gerado pelo Sistema de Arranjos de Discursos</div>
+</body></html>`;
+
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+  setTimeout(() => w.print(), 600);
+}
+
+function gerarPDFDiscursos() {
+  if (!discursos.length) { showToast('Nenhum discurso para gerar PDF'); return; }
+  const sorted = [...discursos].sort((a, b) => a.data.localeCompare(b.data));
+  const congNome = document.getElementById('congregacaoSelect')?.selectedOptions[0]?.text || '';
+  const hoje = new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' });
+
+  // Group by year-month
+  const grupos = {};
+  for (const d of sorted) {
+    const dt   = new Date(d.data + 'T12:00:00');
+    const key  = dt.toLocaleDateString('pt-BR', { month:'long', year:'numeric' });
+    if (!grupos[key]) grupos[key] = [];
+    grupos[key].push(d);
+  }
+
+  const TIPO_COR = { 'RECEBEREMOS': '#6366f1', 'ENVIAREMOS': '#0ea5e9' };
+
+  const sections = Object.entries(grupos).map(([mes, itens]) => {
+    const rows = itens.map((x, i) => {
+      const bg  = i % 2 === 0 ? '#ffffff' : '#f8f9ff';
+      const dt  = new Date(x.data + 'T12:00:00').toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'2-digit' });
+      const cor = TIPO_COR[x.tipo] || '#6366f1';
+      const tipoBadge = x.tipo
+        ? `<span style="background:${cor}18;color:${cor};border:1px solid ${cor}44;border-radius:12px;padding:1px 8px;font-size:10px;font-weight:600;white-space:nowrap">${esc(x.tipo)}</span>`
+        : '';
+      return `<tr style="background:${bg}">
+        <td style="width:90px;font-size:12px;color:#555;white-space:nowrap">${esc(dt)}</td>
+        <td style="font-size:13px;color:#1e1e2e;padding:9px 12px">
+          ${esc(x.titulo || '—')}
+          ${x.numero ? `<span style="color:#888;font-size:11px"> · Nº ${x.numero}</span>` : ''}
+        </td>
+        <td style="width:140px;font-size:12px;color:#333">${esc(x.orador || '—')}</td>
+        <td style="width:60px;font-size:12px;color:#555;text-align:center">${esc(x.horario || '—')}</td>
+        <td style="width:120px;text-align:center">${tipoBadge}</td>
+      </tr>`;
+    }).join('');
+    return `<div class="mes-header">${esc(mes.charAt(0).toUpperCase() + mes.slice(1))}</div>
+    <table>
+      <thead><tr>
+        <th style="width:90px">Data</th>
+        <th>Tema</th>
+        <th style="width:140px">Orador</th>
+        <th style="width:60px;text-align:center">Horário</th>
+        <th style="width:120px;text-align:center">Tipo</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html><html lang="pt-BR"><head>
+<meta charset="UTF-8">
+<title>Discursos Semanais — ${esc(congNome)}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Inter',system-ui,sans-serif; background:#fff; color:#1e1e2e; padding:32px 40px; }
+  .cover { display:flex; justify-content:space-between; align-items:flex-end; border-bottom:3px solid #6366f1; padding-bottom:20px; margin-bottom:28px; }
+  .cover-left h1 { font-size:22px; font-weight:700; letter-spacing:-.3px }
+  .cover-left p  { font-size:13px; color:#6b7399; margin-top:4px }
+  .cover-right   { text-align:right; font-size:12px; color:#6b7399; line-height:1.6 }
+  .badge { display:inline-block; background:#6366f115; color:#6366f1; border:1px solid #6366f144; border-radius:20px; padding:3px 12px; font-size:12px; font-weight:600; margin-bottom:8px }
+  .mes-header { font-size:14px; font-weight:700; color:#6366f1; margin:28px 0 10px; padding-bottom:6px; border-bottom:2px solid #6366f133; text-transform:capitalize; letter-spacing:-.2px }
+  table { width:100%; border-collapse:collapse; border-radius:12px; overflow:hidden; box-shadow:0 1px 8px #0001; margin-bottom:4px }
+  th { background:#6366f1; color:#fff; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.6px; padding:10px 12px; text-align:left }
+  td { padding:9px 12px; border-bottom:1px solid #f0f0f8; vertical-align:middle }
+  tr:last-child td { border-bottom:none }
+  .footer { margin-top:24px; text-align:center; font-size:11px; color:#aaa; border-top:1px solid #eee; padding-top:14px }
+  @media print {
+    body { padding:14px 18px }
+    @page { margin:10mm 12mm; size:A4 }
+    .mes-header { page-break-before:auto }
+  }
+</style></head><body>
+<div class="cover">
+  <div class="cover-left">
+    <div class="badge">Agenda oficial</div>
+    <h1>Discursos Semanais</h1>
+    <p>Congregação ${esc(congNome)} · ${sorted.length} discursos registrados</p>
+  </div>
+  <div class="cover-right">Gerado em<br><strong>${hoje}</strong></div>
+</div>
+${sections}
 <div class="footer">Gerado pelo Sistema de Arranjos de Discursos</div>
 </body></html>`;
 
