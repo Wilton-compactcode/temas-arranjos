@@ -1155,6 +1155,31 @@ function toggleFilter() {
 }
 
 // ── PDF ───────────────────────────────────────────────────────────────────
+function abrirIframePrint(html) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#fff;display:flex;flex-direction:column';
+
+  const bar = document.createElement('div');
+  bar.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px 16px;background:#f0f1fa;border-bottom:1px solid #dde;flex-shrink:0';
+  bar.innerHTML = '<button id="pdfPrintBtn" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:8px 18px;font:600 13px/1 inherit;cursor:pointer">🖨️ Imprimir / Salvar PDF</button>'
+                + '<button id="pdfCloseBtn" style="background:transparent;color:#666;border:1px solid #dde;border-radius:8px;padding:8px 14px;font:inherit;font-size:13px;cursor:pointer">✕ Fechar</button>'
+                + '<span style="font-size:12px;color:#888">Clique em "Imprimir" e escolha "Salvar como PDF" no destino</span>';
+
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'flex:1;border:none;width:100%';
+
+  overlay.appendChild(bar);
+  overlay.appendChild(iframe);
+  document.body.appendChild(overlay);
+
+  bar.querySelector('#pdfCloseBtn').onclick = () => document.body.removeChild(overlay);
+  bar.querySelector('#pdfPrintBtn').onclick = () => iframe.contentWindow.print();
+
+  iframe.contentDocument.open();
+  iframe.contentDocument.write(html);
+  iframe.contentDocument.close();
+}
+
 function gerarPDF() {
   const sorted = [...temas].sort((a, b) => Number(a.num) - Number(b.num));
   const congNome = document.getElementById('congregacaoSelect')?.selectedOptions[0]?.text || '';
@@ -1228,19 +1253,12 @@ function gerarPDF() {
 <div class="footer">Gerado pelo Sistema de Arranjos de Discursos</div>
 </body></html>`;
 
-  const w = window.open('', '_blank');
-  w.document.write(html);
-  w.document.close();
-  setTimeout(() => w.print(), 600);
+  abrirIframePrint(html);
 }
 
 async function gerarPDFDiscursos() {
   if (!discursos.length) { showToast('Nenhum discurso para gerar PDF'); return; }
 
-  // Abre a janela ANTES do await para não ser bloqueada como popup
-  const w = window.open('', '_blank');
-  if (!w) { showToast('Permita popups para gerar o PDF'); return; }
-  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Carregando…</title></head><body style="font-family:sans-serif;padding:40px;color:#555">Carregando dados…</body></html>');
 
   const sorted = [...discursos].sort((a, b) => a.data.localeCompare(b.data));
   const congNome = document.getElementById('congregacaoSelect')?.selectedOptions[0]?.text || '';
@@ -1342,10 +1360,7 @@ ${sections}
 <div class="footer">Gerado pelo Sistema de Arranjos de Discursos</div>
 </body></html>`;
 
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
-  setTimeout(() => w.print(), 600);
+  abrirIframePrint(html);
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────
