@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Sistema compartilhado entre congregações</title>
+  <style>
+    :root {
+      --bg:       #07080e;
+      --s0:       #0c0e17;
+      --s1:       #11131e;
+      --s2:       #171a28;
+      --s3:       #1e2232;
+      --border:   #1c2035;
+      --border2:  #252b42;
+      --text:     #eaecf8;
+      --text2:    #6b7399;
+      --text3:    #3d4460;
+      --accent:   #6366f1;
+      --acc-dim:  rgba(99,102,241,.12);
+      --never:    #ef4444;
+      --old:      #f97316;
+      --mid:      #eab308;
+      --ok:       #22c55e;
+      --new:      #16a34a;
+      --future:   #a78bfa;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ═══════════ HEADER ═══════════ */
+    header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(7,8,14,.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 16px 12px;
+    }
+
+    .hdr-top {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .hdr-logo {
+      display: flex; align-items: center; gap: 10px;
+    }
+
+    .logo-mark {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; flex-shrink: 0;
+      box-shadow: 0 2px 12px rgba(99,102,241,.3);
+    }
+
+    .hdr-title { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; }
+    .hdr-sub   { font-size: 11px; color: var(--text2); margin-top: 1px; }
+    .workspace-bar { display:flex; gap:8px; align-items:center; margin:0 0 10px; }
+    .workspace-bar select,.shared-input { flex:1; min-width:0; background:var(--s2); border:1px solid var(--border2); border-radius:10px; padding:10px 12px; color:var(--text); font:inherit; }
+    .tabbar { display:flex; gap:8px; padding:10px 12px 4px; overflow:auto; }
+    .tabbar button { flex:1; min-width:max-content; background:var(--s1); border:1px solid var(--border); border-radius:10px; padding:10px 13px; color:var(--text2); font:inherit; font-size:13px; cursor:pointer; }
+    .tabbar button.active { color:white; background:var(--acc-dim); border-color:var(--accent); }
+    .shared-panel { padding:14px 16px 100px; }
+    .shared-panel h2 { font-size:18px; margin:8px 0 5px; }
+    .shared-note { color:var(--text2); font-size:12px; margin-bottom:16px; }
+    .shared-form { display:grid; gap:9px; background:var(--s1); border:1px solid var(--border); border-radius:14px; padding:14px; margin-bottom:16px; }
+    .shared-form .btn-save { padding:11px; font-size:14px; }
+    .shared-row { display:flex; gap:12px; align-items:center; justify-content:space-between; background:var(--s1); border:1px solid var(--border); border-radius:12px; padding:13px; margin:7px 0; }
+    .shared-row small { display:block; color:var(--text2); margin-top:4px; }
+    .remove-btn { background:transparent; color:#f87171; border:1px solid var(--border2); padding:7px 10px; border-radius:8px; cursor:pointer; }
+
+    .search-wrap {
+      display: flex; gap: 8px; align-items: center;
+    }
+
+    .search-inner {
+      flex: 1; position: relative; display: flex; align-items: center;
+    }
+
+    .search-icon {
+      position: absolute; left: 12px; color: var(--text3);
+      pointer-events: none; flex-shrink: 0;
+    }
+
+    .search-inner input {
+      width: 100%;
+      background: var(--s2); border: 1px solid var(--border2);
+      border-radius: 10px; padding: 10px 12px 10px 36px;
+      color: var(--text); font-size: 14px; outline: none;
+      transition: border-color .2s;
+    }
+    .search-inner input::placeholder { color: var(--text3); }
+    .search-inner input:focus { border-color: var(--accent); background: var(--s1); }
+
+    .filter-btn {
+      background: var(--s2); border: 1px solid var(--border2);
+      border-radius: 10px; padding: 10px 13px;
+      color: var(--text2); font-size: 12px; font-weight: 500;
+      cursor: pointer; white-space: nowrap; transition: all .2s;
+      flex-shrink: 0;
+    }
+    .filter-btn:active { opacity: .7; }
+    .filter-btn.on {
+      background: var(--acc-dim); border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ═══════════ STATS ═══════════ */
+    .stats {
+      display: flex; gap: 6px;
+      padding: 10px 16px;
+      overflow-x: auto; scrollbar-width: none;
+    }
+    .stats::-webkit-scrollbar { display: none; }
+
+    .stat {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--s1); border: 1px solid var(--border);
+      border-radius: 20px; padding: 5px 11px;
+      white-space: nowrap; flex-shrink: 0;
+      transition: all .2s; cursor: default;
+    }
+
+    .stat-ring {
+      width: 8px; height: 8px; border-radius: 50%;
+    }
+    .stat-val {
+      font-size: 13px; font-weight: 700; color: var(--text);
+    }
+    .stat-lbl { font-size: 10px; color: var(--text2); }
+
+    /* ═══════════ LIST ═══════════ */
+    .list-wrap { padding: 4px 0 100px; }
+
+    .count-row {
+      padding: 6px 18px 2px;
+      font-size: 11px; color: var(--text3); font-weight: 500;
+    }
+
+    /* Card */
+    .card {
+      position: relative;
+      display: flex; align-items: stretch;
+      margin: 4px 12px;
+      background: var(--s1);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: background .15s, transform .12s, box-shadow .15s;
+      -webkit-tap-highlight-color: transparent;
+      animation: fadeUp .3s ease both;
+    }
+    .card:active { transform: scale(0.975); background: var(--s2); }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Left accent stripe */
+    .stripe {
+      width: 3px; flex-shrink: 0;
+      border-radius: 0;
+    }
+    /* Subtle background tint via pseudo */
+    .card::after {
+      content: '';
+      position: absolute; left: 3px; top: 0; bottom: 0; width: 120px;
+      pointer-events: none; opacity: .045;
+    }
+
+    .card[data-p="never"]  .stripe { background: var(--never); }
+    .card[data-p="old"]    .stripe { background: var(--old); }
+    .card[data-p="mid"]    .stripe { background: var(--mid); }
+    .card[data-p="ok"]     .stripe { background: var(--ok); }
+    .card[data-p="new"]    .stripe { background: var(--new); }
+    .card[data-p="future"] .stripe { background: var(--future); }
+
+    .card[data-p="never"]::after  { background: linear-gradient(90deg,var(--never),transparent); }
+    .card[data-p="old"]::after    { background: linear-gradient(90deg,var(--old),transparent); }
+    .card[data-p="mid"]::after    { background: linear-gradient(90deg,var(--mid),transparent); }
+    .card[data-p="ok"]::after     { background: linear-gradient(90deg,var(--ok),transparent); }
+    .card[data-p="new"]::after    { background: linear-gradient(90deg,var(--new),transparent); }
+    .card[data-p="future"]::after { background: linear-gradient(90deg,var(--future),transparent); }
+
+    .card-body { flex: 1; padding: 11px 14px; min-width: 0; position: relative; z-index: 1; }
+
+    .card-top {
+      display: flex; align-items: flex-start; gap: 8px; margin-bottom: 7px;
+    }
+
+    .rank {
+      font-size: 10px; font-weight: 700; color: var(--text3);
+      min-width: 24px; padding-top: 2px; flex-shrink: 0;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .card-right { flex: 1; min-width: 0; }
+
+    .num-row {
+      display: flex; align-items: center; gap: 6px; margin-bottom: 3px;
+    }
+
+    .num-tag {
+      font-size: 9px; font-weight: 700; letter-spacing: .6px;
+      text-transform: uppercase; color: var(--text3);
+      background: var(--s3); border-radius: 4px;
+      padding: 1px 5px;
+    }
+
+    .user-star {
+      font-size: 9px; color: var(--accent); font-weight: 700;
+    }
+
+    .titulo {
+      font-size: 13.5px; font-weight: 500; line-height: 1.4;
+      color: var(--text); word-break: break-word;
+    }
+
+    .card-meta {
+      display: flex; align-items: center; gap: 7px;
+      flex-wrap: wrap;
+    }
+
+    .last-date {
+      font-size: 11px; color: var(--text2); font-weight: 500;
+    }
+
+    .since-pill {
+      font-size: 10px; font-weight: 700;
+      padding: 2px 8px; border-radius: 20px;
+      letter-spacing: .2px;
+    }
+    .sp-never  { background: rgba(239,68,68,.14); color: var(--never); }
+    .sp-old    { background: rgba(249,115,22,.14); color: var(--old); }
+    .sp-mid    { background: rgba(234,179,8,.14);  color: var(--mid); }
+    .sp-ok     { background: rgba(34,197,94,.14);  color: var(--ok); }
+    .sp-new    { background: rgba(22,163,74,.14);  color: var(--new); }
+    .sp-future { background: rgba(167,139,250,.14);color: var(--future); }
+
+    .hist-dates {
+      font-size: 9.5px; color: var(--text3);
+      margin-left: auto; text-align: right; flex-shrink: 0;
+    }
+    .add-hint { font-size: 10px; color: var(--accent); opacity: .6; margin-left: auto; }
+
+    /* Empty / loading */
+    .placeholder {
+      text-align: center; padding: 64px 24px;
+      color: var(--text2);
+    }
+    .placeholder-icon { font-size: 32px; margin-bottom: 12px; opacity: .4; }
+    .placeholder-txt  { font-size: 14px; font-weight: 500; }
+    .placeholder-sub  { font-size: 12px; color: var(--text3); margin-top: 4px; }
+
+    /* Skeleton */
+    .skel {
+      margin: 4px 12px; height: 72px;
+      background: var(--s1); border: 1px solid var(--border);
+      border-radius: 14px; overflow: hidden; position: relative;
+    }
+    .skel::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(90deg,transparent 0%,rgba(255,255,255,.03) 50%,transparent 100%);
+      animation: shimmer 1.4s infinite;
+    }
+    @keyframes shimmer {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+
+    /* ═══════════ FAB ═══════════ */
+    #btnTop {
+      position: fixed; bottom: 24px; right: 20px;
+      width: 44px; height: 44px;
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(99,102,241,.45);
+      opacity: 0; transform: scale(0.7);
+      transition: opacity .2s, transform .2s;
+      z-index: 200;
+    }
+    #btnTop.vis { opacity: 1; transform: scale(1); }
+    #btnTop:active { transform: scale(.92); }
+
+    /* ═══════════ OVERLAY ═══════════ */
+    .overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.7);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 300;
+      opacity: 0; pointer-events: none;
+      transition: opacity .28s;
+    }
+    .overlay.open { opacity: 1; pointer-events: all; }
+
+    /* ═══════════ BOTTOM SHEET ═══════════ */
+    .sheet {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 400;
+      background: var(--s0);
+      border-radius: 22px 22px 0 0;
+      border-top: 1px solid var(--border2);
+      padding-bottom: env(safe-area-inset-bottom, 20px);
+      transform: translateY(100%);
+      transition: transform .32s cubic-bezier(.2,.9,.3,1);
+      max-height: 90vh; overflow-y: auto;
+    }
+    .sheet.open { transform: translateY(0); }
+
+    .sheet-handle {
+      width: 36px; height: 4px;
+      background: var(--border2); border-radius: 2px;
+      margin: 14px auto 0;
+    }
+
+    /* Sheet priority bar — thin line at top */
+    .sheet-prio-line {
+      height: 2px; width: 100%; margin-top: 12px;
+      background: linear-gradient(90deg, transparent 0%, currentColor 30%, transparent 100%);
+      opacity: 0; /* set via JS */
+    }
+
+    .sheet-hdr {
+      padding: 14px 22px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sheet-meta {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+    }
+
+    .sheet-num-badge {
+      font-size: 10px; font-weight: 700; letter-spacing: .6px;
+      text-transform: uppercase; color: var(--text3);
+      background: var(--s3); border-radius: 5px; padding: 2px 7px;
+    }
+
+    .sheet-since {
+      font-size: 11px; font-weight: 700;
+      padding: 2px 10px; border-radius: 20px;
+    }
+
+    .sheet-title {
+      font-size: 16px; font-weight: 600; line-height: 1.4;
+      letter-spacing: -.2px;
+    }
+
+    /* Sections */
+    .sh-section { padding: 18px 22px; }
+    .sh-section + .sh-section { border-top: 1px solid var(--border); }
+
+    .sh-sec-label {
+      font-size: 10px; font-weight: 700; letter-spacing: .8px;
+      text-transform: uppercase; color: var(--text3); margin-bottom: 12px;
+    }
+
+    /* Date chips */
+    .chips { display: flex; flex-wrap: wrap; gap: 7px; }
+
+    .chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--s2); border: 1px solid var(--border2);
+      border-radius: 22px; padding: 6px 13px;
+      font-size: 12px; font-weight: 500; color: var(--text);
+    }
+    .chip.user-chip {
+      background: rgba(99,102,241,.1);
+      border-color: rgba(99,102,241,.35);
+      color: #a5b4fc;
+    }
+    .chip-x {
+      background: none; border: none;
+      color: var(--never); font-size: 15px; line-height: 1;
+      cursor: pointer; padding: 0; opacity: .7;
+      transition: opacity .15s;
+    }
+    .chip-x:active { opacity: 1; }
+
+    .no-dates-lbl {
+      font-size: 13px; color: var(--text3);
+      padding: 4px 0;
+    }
+
+    /* Picker */
+    .picker-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;
+    }
+
+    .pick-wrap { position: relative; }
+    .pick-wrap select {
+      width: 100%;
+      background: var(--s2); border: 1px solid var(--border2);
+      border-radius: 12px; padding: 13px 14px;
+      color: var(--text); font-size: 15px; outline: none;
+      -webkit-appearance: none; appearance: none;
+      cursor: pointer; text-align: center;
+      font-family: inherit; font-weight: 500;
+      transition: border-color .2s;
+    }
+    .pick-wrap select:focus { border-color: var(--accent); }
+    .pick-arrow {
+      position: absolute; right: 12px; top: 50%;
+      transform: translateY(-50%); pointer-events: none;
+      color: var(--text3);
+    }
+
+    .btn-save {
+      width: 100%;
+      background: linear-gradient(135deg, var(--accent) 0%, #8b5cf6 100%);
+      border: none; border-radius: 12px;
+      padding: 14px; color: #fff; font-size: 15px; font-weight: 600;
+      cursor: pointer; transition: opacity .15s, transform .12s;
+      font-family: inherit;
+      box-shadow: 0 4px 16px rgba(99,102,241,.3);
+    }
+    .btn-save:active { opacity: .85; transform: scale(.98); }
+    .btn-save:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+    .btn-close-sheet {
+      display: block; width: calc(100% - 44px); margin: 0 22px 8px;
+      background: var(--s2); border: 1px solid var(--border2);
+      border-radius: 12px; padding: 14px;
+      color: var(--text2); font-size: 14px; font-weight: 500;
+      cursor: pointer; text-align: center; font-family: inherit;
+      transition: background .15s;
+    }
+    .btn-close-sheet:active { background: var(--s3); }
+
+    /* ═══════════ TOAST ═══════════ */
+    .toast {
+      position: fixed; bottom: 88px; left: 50%;
+      transform: translateX(-50%) translateY(16px);
+      background: var(--s3); border: 1px solid var(--border2);
+      border-radius: 22px; padding: 9px 20px;
+      font-size: 13px; font-weight: 500; color: var(--text);
+      z-index: 600; opacity: 0; pointer-events: none;
+      transition: opacity .22s, transform .22s;
+      white-space: nowrap;
+      box-shadow: 0 8px 32px rgba(0,0,0,.4);
+    }
+    .toast.show {
+      opacity: 1; transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="hdr-top">
+    <div class="hdr-logo">
+      <div class="logo-mark">📋</div>
+      <div>
+        <div class="hdr-title">Congregações</div>
+        <div class="hdr-sub">Agenda compartilhada</div>
+      </div>
+    </div>
+  </div>
+  <div class="workspace-bar"><label for="congregacaoSelect" class="hdr-sub">Congregação</label><select id="congregacaoSelect" aria-label="Congregação"></select><button class="filter-btn" onclick="showTab('congregacoes')">+ Adicionar</button></div>
+  <div class="search-wrap">
+    <div class="search-inner">
+      <svg class="search-icon" width="15" height="15" viewBox="0 0 16 16" fill="none">
+        <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M11 11l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <input type="search" id="searchInput" placeholder="Pesquisar tema ou número…" autocomplete="off" spellcheck="false">
+    </div>
+    <button class="filter-btn" id="filterBtn" onclick="toggleFilter()">Sem data</button>
+  </div>
+</header>
+
+<nav class="tabbar"><button id="tabTemas" class="active" onclick="showTab('temas')">Temas</button><button id="tabDesignacoes" onclick="showTab('designacoes')">Designações</button><button id="tabDiscursos" onclick="showTab('discursos')">Discursos semanais</button><button id="tabCongregacoes" onclick="showTab('congregacoes')">Congregações</button></nav>
+
+<!-- STATS -->
+<div id="temasPanel"><div class="stats" id="statsBar">
+  <div class="stat"><div class="stat-ring" style="background:var(--never)"></div><span class="stat-val" id="cNever">—</span><span class="stat-lbl">nunca</span></div>
+  <div class="stat"><div class="stat-ring" style="background:var(--old)"></div><span class="stat-val"   id="cOld">—</span><span class="stat-lbl">&gt;3 anos</span></div>
+  <div class="stat"><div class="stat-ring" style="background:var(--mid)"></div><span class="stat-val"   id="cMid">—</span><span class="stat-lbl">2–3 anos</span></div>
+  <div class="stat"><div class="stat-ring" style="background:var(--ok)"></div><span class="stat-val"    id="cOk">—</span><span class="stat-lbl">1–2 anos</span></div>
+  <div class="stat"><div class="stat-ring" style="background:var(--new)"></div><span class="stat-val"   id="cNew">—</span><span class="stat-lbl">&lt;1 ano</span></div>
+</div>
+
+<!-- LIST -->
+<div class="list-wrap">
+  <div class="count-row" id="countRow"></div>
+  <div id="listEl">
+    <div class="skel" style="animation-delay:.0s"></div>
+    <div class="skel" style="animation-delay:.05s"></div>
+    <div class="skel" style="animation-delay:.1s"></div>
+    <div class="skel" style="animation-delay:.15s"></div>
+    <div class="skel" style="animation-delay:.2s"></div>
+    <div class="skel" style="animation-delay:.25s"></div>
+  </div>
+</div>
+</div>
+
+<section id="discursosPanel" class="shared-panel" hidden>
+  <h2>Discursos semanais</h2><p class="shared-note">Agenda compartilhada da congregação selecionada.</p>
+  <form class="shared-form" onsubmit="addDiscurso(event)">
+    <input class="shared-input" id="talkDate" type="date" required aria-label="Data">
+    <input class="shared-input" id="talkSpeaker" placeholder="Orador">
+    <div style="display:flex;gap:8px"><input class="shared-input" id="talkNumber" type="number" min="1" placeholder="Nº do tema" style="max-width:120px"><input class="shared-input" id="talkTitle" placeholder="Tema do discurso" required></div>
+    <input class="shared-input" id="talkTime" placeholder="Horário (ex.: 19h)">
+    <button class="btn-save" type="submit">Adicionar discurso</button>
+  </form><div id="discursosList"></div>
+</section>
+
+<section id="designacoesPanel" class="shared-panel" hidden>
+  <h2>Designações anuais</h2><p class="shared-note">Registre qual congregação ficará designada em cada mês.</p>
+  <div class="shared-form"><label for="designacaoAno">Ano</label><select class="shared-input" id="designacaoAno" onchange="loadDesignacoes()"></select></div>
+  <div id="designacoesList"></div>
+</section>
+
+<section id="congregacoesPanel" class="shared-panel" hidden>
+  <h2>Congregações</h2><p class="shared-note">Gerencie as congregações e seus responsáveis.</p>
+  <form class="shared-form" onsubmit="addCongregacao(event)">
+    <input class="shared-input" id="newCongregacao" placeholder="Nome da congregação" maxlength="120" required>
+    <input class="shared-input" id="newContato" placeholder="Contato do responsável (opcional)" maxlength="200">
+    <button class="btn-save" type="submit">Adicionar congregação</button>
+  </form>
+  <div id="congregacoesList"></div>
+</section>
+
+<!-- Modal editar congregação -->
+<div id="editCongModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center;">
+  <div style="background:var(--s1);border:1px solid var(--border2);border-radius:16px;padding:20px;width:min(380px,90vw);display:flex;flex-direction:column;gap:12px;">
+    <div style="font-weight:700;font-size:16px;">Editar congregação</div>
+    <input class="shared-input" id="editCongNome" placeholder="Nome" maxlength="120">
+    <input class="shared-input" id="editCongContato" placeholder="Contato do responsável">
+    <div style="display:flex;gap:8px;margin-top:4px;">
+      <button class="btn-save" style="flex:1" onclick="saveEditCong()">Salvar</button>
+      <button class="remove-btn" style="flex:1" onclick="closeEditCong()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- FAB -->
+<div id="btnTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+    <path d="M8 12V4M4 8l4-4 4 4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+</div>
+
+<!-- OVERLAY + SHEET -->
+<div class="overlay" id="overlay" onclick="closeSheet()"></div>
+
+<div class="sheet" id="sheet">
+  <div class="sheet-handle"></div>
+
+  <div class="sheet-hdr" id="sheetHdr">
+    <div class="sheet-meta">
+      <span class="sheet-num-badge" id="sheetNum"></span>
+      <span class="sheet-since since-pill" id="sheetSince"></span>
+    </div>
+    <div class="sheet-title" id="sheetTitle"></div>
+  </div>
+
+  <div class="sh-section">
+    <div class="sh-sec-label">Histórico de datas</div>
+    <div class="chips" id="sheetDates"></div>
+  </div>
+
+  <div class="sh-section">
+    <div class="sh-sec-label">Registrar realização</div>
+    <div class="picker-grid">
+      <div class="pick-wrap">
+        <select id="pickMes">
+          <option value="jan">Janeiro</option>
+          <option value="fev">Fevereiro</option>
+          <option value="mar">Março</option>
+          <option value="abr">Abril</option>
+          <option value="mai">Maio</option>
+          <option value="jun">Junho</option>
+          <option value="jul">Julho</option>
+          <option value="ago">Agosto</option>
+          <option value="set">Setembro</option>
+          <option value="out">Outubro</option>
+          <option value="nov">Novembro</option>
+          <option value="dez">Dezembro</option>
+        </select>
+        <svg class="pick-arrow" width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="pick-wrap">
+        <select id="pickAno"></select>
+        <svg class="pick-arrow" width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+    </div>
+    <button class="btn-save" id="btnSave" onclick="addDate()">Confirmar data</button>
+  </div>
+
+  <button class="btn-close-sheet" onclick="closeSheet()">Fechar</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+  onerror="document.getElementById('listEl').innerHTML='<div class=placeholder><div class=placeholder-icon>⚡</div><div class=placeholder-txt>Falha ao carregar biblioteca Supabase</div><div class=placeholder-sub>Verifique sua conexão com a internet</div></div>'">
+</script>
+<script>
+// ── Supabase ───────────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://swxlaicapszyotqtedoq.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_8btnQvnTSnu92jsbknJt5Q_wGv7qJdL';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ── Constants ──────────────────────────────────────────────────────────────
+const MESES_PT   = ['','jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+const MESES_FULL = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                    'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const MESES_MAP  = {jan:1,fev:2,mar:3,abr:4,mai:5,jun:6,jul:7,ago:8,set:9,out:10,nov:11,dez:12};
+
+const PRIO_COLOR = {
+  never: 'var(--never)', old: 'var(--old)', mid: 'var(--mid)',
+  ok:    'var(--ok)',    new: 'var(--new)', future: 'var(--future)',
+};
+
+// ── State ─────────────────────────────────────────────────────────────────
+let temas         = [];
+let activeNum     = null;
+let showOnlyNever = false;
+let searchTerm    = '';
+let congregacoes = [];
+let congregacaoId = 1;
+
+// ── Supabase helpers ──────────────────────────────────────────────────────
+function todayIndex() {
+  const d = new Date();
+  return d.getFullYear() * 12 + d.getMonth() + 1;
+}
+
+function priority(months) {
+  if (months == null) return 'never';
+  if (months <= 0)    return 'future';
+  if (months < 12)    return 'new';
+  if (months < 24)    return 'ok';
+  if (months < 36)    return 'mid';
+  return 'old';
+}
+
+function computeTemas(allTemas, allDatas) {
+  const now = todayIndex();
+  return allTemas.map(t => {
+    const datas = allDatas.filter(d => d.tema_num === t.num)
+                          .sort((a,b) => a.mes_idx - b.mes_idx);
+    const prior = datas.filter(d => d.mes_idx <= now).at(-1);
+    const monthsAgo = prior ? now - prior.mes_idx : null;
+    const ultimaStr = prior
+      ? `${MESES_FULL[MESES_MAP[prior.mes]||0]} ${prior.ano}`
+      : null;
+    return { ...t, ultima_data_str: ultimaStr, meses_atras: monthsAgo,
+             prioridade: priority(monthsAgo), datas };
+  }).sort((a,b) =>
+    (a.meses_atras ?? -1) - (b.meses_atras ?? -1) || Number(a.num) - Number(b.num)
+  );
+}
+
+// ── API ───────────────────────────────────────────────────────────────────
+async function loadTemas() {
+  try {
+    const [r1, r2] = await Promise.all([
+      sb.from('temas').select('num,titulo'),
+      sb.from('datas').select('*').eq('congregacao_id', congregacaoId),
+    ]);
+    if (r1.error) throw r1.error;
+    if (r2.error) throw r2.error;
+    temas = computeTemas(r1.data || [], r2.data || []);
+    updateStats();
+    renderList();
+    if (activeNum) updateSheet();
+  } catch (err) {
+    document.getElementById('listEl').innerHTML =
+      `<div class="placeholder">
+        <div class="placeholder-icon">⚡</div>
+        <div class="placeholder-txt">Erro ao carregar dados</div>
+        <div class="placeholder-sub">${esc(String(err?.message || err))}</div>
+       </div>`;
+  }
+}
+
+function showTab(tab) {
+  document.getElementById('temasPanel').hidden = tab !== 'temas';
+  document.getElementById('discursosPanel').hidden = tab !== 'discursos';
+  document.getElementById('designacoesPanel').hidden = tab !== 'designacoes';
+  document.getElementById('congregacoesPanel').hidden = tab !== 'congregacoes';
+  document.getElementById('searchInput').parentElement.parentElement.style.display = tab === 'temas' ? 'flex' : 'none';
+  ['Temas','Designacoes','Discursos','Congregacoes'].forEach((x,i)=>document.getElementById('tab'+x).classList.toggle('active', ['temas','designacoes','discursos','congregacoes'][i]===tab));
+  if(tab==='discursos') loadDiscursos();
+  if(tab==='designacoes') loadDesignacoes();
+  if(tab==='congregacoes') loadCongregacoes();
+}
+
+const MESES_NOME=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+async function loadDesignacoes() {
+  const year = Number(document.getElementById('designacaoAno').value) || new Date().getFullYear();
+  const { data, error } = await sb.from('designacoes').select('mes,congregacao_id').eq('ano', year);
+  if (error) return;
+  const rows = data || [];
+  document.getElementById('designacoesList').innerHTML = Array.from({length:12}, (_,i) => {
+    const d = rows.find(x => x.mes === i + 1);
+    return `<div class="shared-row"><strong>${MESES_NOME[i]}</strong>
+      <select class="shared-input" style="max-width:250px" onchange="saveDesignacao(${year},${i+1},this.value)">
+        <option value="">Sem designação</option>
+        ${congregacoes.map(c=>`<option value="${c.id}" ${d?.congregacao_id===c.id?'selected':''}>${esc(c.nome)}</option>`).join('')}
+      </select></div>`;
+  }).join('');
+}
+
+async function saveDesignacao(ano, mes, value) {
+  const { error } = await sb.from('designacoes').upsert(
+    { ano, mes, congregacao_id: value ? Number(value) : null },
+    { onConflict: 'ano,mes' }
+  );
+  showToast(error ? 'Não foi possível salvar' : 'Designação salva');
+}
+
+async function loadCongregacoes() {
+  const { data, error } = await sb.from('congregacoes').select('id,nome,contato').order('nome');
+  if (error) {
+    document.getElementById('listEl').innerHTML =
+      `<div class="placeholder"><div class="placeholder-icon">⚡</div>
+       <div class="placeholder-txt">Erro ao conectar ao Supabase</div>
+       <div class="placeholder-sub">${esc(String(error?.message || error))}</div></div>`;
+    return;
+  }
+  congregacoes = data || [];
+  const sel = document.getElementById('congregacaoSelect');
+  sel.innerHTML = congregacoes.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('');
+  if (congregacoes.some(c=>c.id===congregacaoId)) sel.value = congregacaoId;
+  else congregacaoId = Number(sel.value) || congregacoes[0]?.id || 1;
+  document.getElementById('congregacoesList').innerHTML = congregacoes.map(c=>
+    `<div class="shared-row">
+      <div style="min-width:0;flex:1">${esc(c.nome)}<small>${c.contato ? esc(c.contato) : 'Sem contato cadastrado'}</small></div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="remove-btn" style="color:#a78bfa;border-color:var(--border2)" onclick="copiarLink(${c.id})" title="Copiar link">🔗</button>
+        <button class="remove-btn" style="color:var(--accent);border-color:var(--border2)" onclick="openEditCong(${c.id})">Editar</button>
+        <button class="remove-btn" onclick="removeCongregacao(${c.id})">Excluir</button>
+      </div>
+    </div>`
+  ).join('');
+  await loadTemas();
+}
+
+async function addCongregacao(e) {
+  e.preventDefault();
+  const nome    = document.getElementById('newCongregacao').value.trim();
+  const contato = document.getElementById('newContato').value.trim() || null;
+  const { data, error } = await sb.from('congregacoes').insert({ nome, contato }).select().single();
+  if (error) {
+    showToast(error.code === '23505' ? 'Essa congregação já está cadastrada' : 'Não foi possível cadastrar');
+    return;
+  }
+  congregacaoId = data.id;
+  await loadCongregacoes();
+  document.getElementById('congregacaoSelect').value = data.id;
+  document.getElementById('newCongregacao').value = '';
+  document.getElementById('newContato').value = '';
+  showToast('Congregação adicionada');
+}
+
+function copiarLink(id) {
+  const base = location.href.split('?')[0];
+  const url  = `${base}?cong=${id}`;
+  navigator.clipboard.writeText(url).then(
+    () => showToast('Link copiado!'),
+    () => { prompt('Copie o link:', url); }
+  );
+}
+
+let editCongId = null;
+function openEditCong(id) {
+  const c = congregacoes.find(x => x.id === id);
+  if (!c) return;
+  editCongId = id;
+  document.getElementById('editCongNome').value    = c.nome;
+  document.getElementById('editCongContato').value = c.contato || '';
+  document.getElementById('editCongModal').style.display = 'flex';
+}
+function closeEditCong() {
+  document.getElementById('editCongModal').style.display = 'none';
+  editCongId = null;
+}
+async function saveEditCong() {
+  const nome    = document.getElementById('editCongNome').value.trim();
+  const contato = document.getElementById('editCongContato').value.trim() || null;
+  if (!nome) return;
+  const { error } = await sb.from('congregacoes').update({ nome, contato }).eq('id', editCongId);
+  if (error) { showToast('Não foi possível salvar'); return; }
+  closeEditCong();
+  await loadCongregacoes();
+  showToast('Congregação atualizada');
+}
+async function removeCongregacao(id) {
+  if (!confirm('Excluir esta congregação? Isso também remove os dados de datas e discursos vinculados.')) return;
+  const { error } = await sb.from('congregacoes').delete().eq('id', id);
+  if (error) { showToast('Não foi possível excluir'); return; }
+  if (congregacaoId === id) congregacaoId = null;
+  await loadCongregacoes();
+  showToast('Congregação excluída');
+}
+
+async function loadDiscursos() {
+  const { data, error } = await sb.from('discursos').select('*')
+    .eq('congregacao_id', congregacaoId).order('data', { ascending: false });
+  if (error) return;
+  const rows = data || [];
+  document.getElementById('discursosList').innerHTML = rows.length
+    ? rows.map(x=>`<div class="shared-row"><div>
+        <strong>${esc(x.titulo||x.orador||'Sem tema informado')}</strong>
+        <small>${new Date(x.data+'T12:00:00').toLocaleDateString('pt-BR')}${x.tipo?' · '+esc(x.tipo):''} · ${esc(x.orador||'Orador não informado')}${x.numero?' · Tema '+x.numero:''}${x.horario?' · '+esc(x.horario):''}</small>
+      </div><button class="remove-btn" onclick="removeDiscurso(${x.id})">Excluir</button></div>`).join('')
+    : '<p class="shared-note">Nenhum discurso cadastrado.</p>';
+}
+
+async function addDiscurso(e) {
+  e.preventDefault();
+  const { error } = await sb.from('discursos').insert({
+    congregacao_id: congregacaoId,
+    data:    talkDate.value,
+    orador:  talkSpeaker.value || null,
+    numero:  talkNumber.value ? Number(talkNumber.value) : null,
+    titulo:  talkTitle.value,
+    horario: talkTime.value || null,
+  });
+  if (error) { showToast('Não foi possível salvar'); return; }
+  e.target.reset();
+  loadDiscursos();
+  showToast('Discurso adicionado');
+}
+
+async function removeDiscurso(id) {
+  if (!confirm('Excluir este discurso?')) return;
+  const { error } = await sb.from('discursos').delete()
+    .eq('id', id).eq('congregacao_id', congregacaoId);
+  if (!error) loadDiscursos();
+}
+
+async function addDate() {
+  if (!activeNum) return;
+  const btn = document.getElementById('btnSave');
+  btn.disabled = true;
+  btn.textContent = 'Salvando…';
+  const mes = document.getElementById('pickMes').value;
+  const ano = parseInt(document.getElementById('pickAno').value);
+  try {
+    const { error } = await sb.from('datas').insert({
+      tema_num: activeNum, mes, ano,
+      mes_idx: ano * 12 + (MESES_MAP[mes] || 0),
+      origem: 'usuario', congregacao_id: congregacaoId,
+    });
+    if (!error) {
+      showToast('✓ Data registrada');
+      await loadTemas();
+    } else if (error.code === '23505') {
+      showToast('Data já registrada');
+    } else {
+      showToast('Erro ao salvar');
+    }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Confirmar data';
+  }
+}
+
+async function removeDate(id) {
+  const { data: row } = await sb.from('datas').select('origem').eq('id', id).single();
+  if (row?.origem !== 'usuario') {
+    showToast('Não é possível remover datas da planilha');
+    return;
+  }
+  const { error } = await sb.from('datas').delete()
+    .eq('id', id).eq('congregacao_id', congregacaoId);
+  if (!error) {
+    showToast('Data removida');
+    await loadTemas();
+  }
+}
+
+// ── Formatting ────────────────────────────────────────────────────────────
+function sinceLabel(t) {
+  const m = t.meses_atras;
+  if (m == null) return 'Nunca realizado';
+  if (m <= 0) return 'Agendado';
+  if (m < 12) return `${m} ${m === 1 ? 'mês' : 'meses'} atrás`;
+  const a = Math.floor(m / 12), r = m % 12;
+  if (r === 0) return `${a} ${a === 1 ? 'ano' : 'anos'} atrás`;
+  return `${a}a ${r}m atrás`;
+}
+
+function sinceShort(t) {
+  const m = t.meses_atras;
+  if (m == null) return 'Nunca';
+  if (m <= 0) return 'Futuro';
+  if (m < 12) return `${m}m`;
+  const a = Math.floor(m / 12), r = m % 12;
+  return r === 0 ? `${a}a` : `${a}a ${r}m`;
+}
+
+function pilCls(p) {
+  return `since-pill sp-${p}`;
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────
+function updateStats() {
+  const c = { never:0, old:0, mid:0, ok:0, new:0 };
+  temas.forEach(t => { if (t.prioridade in c) c[t.prioridade]++; });
+  document.getElementById('cNever').textContent = c.never;
+  document.getElementById('cOld').textContent   = c.old;
+  document.getElementById('cMid').textContent   = c.mid;
+  document.getElementById('cOk').textContent    = c.ok;
+  document.getElementById('cNew').textContent   = c.new;
+}
+
+// ── List ──────────────────────────────────────────────────────────────────
+function renderList() {
+  const el   = document.getElementById('listEl');
+  const info = document.getElementById('countRow');
+
+  const visible = temas.filter(t => {
+    if (showOnlyNever && t.meses_atras !== null) return false;
+    if (searchTerm) {
+      const q = searchTerm.toLowerCase();
+      return t.titulo.toLowerCase().includes(q) || t.num.includes(q);
+    }
+    return true;
+  });
+
+  info.textContent = visible.length === temas.length
+    ? `${temas.length} temas`
+    : `${visible.length} de ${temas.length} temas`;
+
+  if (!visible.length) {
+    const isEmpty = temas.length === 0;
+    el.innerHTML = `<div class="placeholder">
+      <div class="placeholder-icon">${isEmpty ? '📭' : '🔍'}</div>
+      <div class="placeholder-txt">${isEmpty ? 'Banco vazio' : 'Nenhum tema encontrado'}</div>
+      <div class="placeholder-sub">${isEmpty ? 'Rode o supabase_schema.sql no SQL Editor do Supabase' : 'Tente outro termo de busca'}</div>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = visible.map((t, i) => {
+    const p       = t.prioridade;
+    const last    = t.ultima_data_str || '—';
+    const short   = sinceShort(t);
+    const hasUser = t.datas.some(d => d.origem === 'usuario');
+    const hist    = t.datas.length > 1
+      ? t.datas.map(d => `${MESES_PT[MESES_MAP[d.mes]||0]}/${String(d.ano).slice(2)}`).join(' · ')
+      : '';
+
+    const delay = Math.min(i * 18, 300);
+
+    return `<div class="card" data-p="${p}" style="animation-delay:${delay}ms"
+         onclick="openSheet('${esc(t.num)}')">
+      <div class="stripe"></div>
+      <div class="card-body">
+        <div class="card-top">
+          <span class="rank">${String(i+1).padStart(3,' ')}</span>
+          <div class="card-right">
+            <div class="num-row">
+              <span class="num-tag">Nº ${esc(t.num)}</span>
+              ${hasUser ? '<span class="user-star">★ editado</span>' : ''}
+            </div>
+            <div class="titulo">${esc(t.titulo)}</div>
+          </div>
+        </div>
+        <div class="card-meta">
+          <span class="last-date">${esc(last)}</span>
+          <span class="${pilCls(p)}">${short}</span>
+          ${hist ? `<span class="hist-dates">${esc(hist)}</span>` : `<span class="add-hint">+ registrar</span>`}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Sheet ─────────────────────────────────────────────────────────────────
+function openSheet(num) {
+  activeNum = num;
+  const t = temas.find(x => x.num === num);
+  if (!t) return;
+
+  document.getElementById('sheetNum').textContent   = `Nº ${num}`;
+  document.getElementById('sheetTitle').textContent = t.titulo;
+
+  const sinceEl = document.getElementById('sheetSince');
+  sinceEl.textContent  = sinceLabel(t);
+  sinceEl.className    = `sheet-since ${pilCls(t.prioridade)}`;
+
+  renderSheetDates(t);
+
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('sheet').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function updateSheet() {
+  if (!activeNum) return;
+  const t = temas.find(x => x.num === activeNum);
+  if (!t) return;
+  renderSheetDates(t);
+  const sinceEl = document.getElementById('sheetSince');
+  sinceEl.textContent = sinceLabel(t);
+  sinceEl.className   = `sheet-since ${pilCls(t.prioridade)}`;
+}
+
+function renderSheetDates(t) {
+  const el = document.getElementById('sheetDates');
+
+  if (!t.datas.length) {
+    el.innerHTML = '<span class="no-dates-lbl">Nenhuma data registrada ainda</span>';
+    return;
+  }
+
+  el.innerHTML = t.datas.map(d => {
+    const mn    = MESES_MAP[d.mes] || 0;
+    const label = `${MESES_FULL[mn]} ${d.ano}`;
+    if (d.origem === 'usuario') {
+      return `<span class="chip user-chip">★ ${esc(label)}
+        <button class="chip-x" onclick="removeDate(${d.id})" title="Remover">×</button>
+      </span>`;
+    }
+    return `<span class="chip">${esc(label)}</span>`;
+  }).join('');
+}
+
+function closeSheet() {
+  document.getElementById('overlay').classList.remove('open');
+  document.getElementById('sheet').classList.remove('open');
+  document.body.style.overflow = '';
+  activeNum = null;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+let _toastTmr;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(_toastTmr);
+  _toastTmr = setTimeout(() => el.classList.remove('show'), 2400);
+}
+
+function toggleFilter() {
+  showOnlyNever = !showOnlyNever;
+  document.getElementById('filterBtn').classList.toggle('on', showOnlyNever);
+  renderList();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+(function init() {
+  // Pre-select congregation from URL param ?cong=ID
+  const urlCong = new URLSearchParams(location.search).get('cong');
+  if (urlCong) congregacaoId = Number(urlCong);
+
+  // Quick connection test
+  sb.from('temas').select('num', { count: 'exact', head: true }).then(({ count, error }) => {
+    if (error) {
+      document.getElementById('listEl').innerHTML =
+        `<div class="placeholder"><div class="placeholder-icon">⚡</div>
+         <div class="placeholder-txt">Supabase: ${esc(error.message)}</div>
+         <div class="placeholder-sub">Código: ${esc(error.code||'')} — verifique se rodou o SQL no Supabase</div></div>`;
+    } else if (count === 0) {
+      document.getElementById('listEl').innerHTML =
+        `<div class="placeholder"><div class="placeholder-icon">📭</div>
+         <div class="placeholder-txt">Tabela temas está vazia</div>
+         <div class="placeholder-sub">Rode o supabase_schema.sql no SQL Editor do Supabase</div></div>`;
+    }
+  });
+  loadCongregacoes();
+  const yearSel=document.getElementById('designacaoAno');for(let y=new Date().getFullYear()-2;y<=new Date().getFullYear()+2;y++){const o=document.createElement('option');o.value=y;o.textContent=y;if(y===new Date().getFullYear())o.selected=true;yearSel.appendChild(o);}
+  document.getElementById('congregacaoSelect').addEventListener('change',e=>{congregacaoId=Number(e.target.value)||1;loadTemas();if(!document.getElementById('discursosPanel').hidden)loadDiscursos();});
+  // Populate year picker
+  const anoSel = document.getElementById('pickAno');
+  const yr     = new Date().getFullYear();
+  for (let y = yr; y >= 2015; y--) {
+    const o = document.createElement('option');
+    o.value = y; o.textContent = y;
+    if (y === yr) o.selected = true;
+    anoSel.appendChild(o);
+  }
+  // Set current month
+  document.getElementById('pickMes').value = MESES_PT[new Date().getMonth() + 1];
+})();
+
+document.getElementById('searchInput').addEventListener('input', e => {
+  searchTerm = e.target.value;
+  renderList();
+});
+
+window.addEventListener('scroll', () => {
+  document.getElementById('btnTop').classList.toggle('vis', window.scrollY > 400);
+}, { passive: true });
+
+// loadTemas is called by loadCongregacoes after it populates the selector
+</script>
+</body>
+</html>
