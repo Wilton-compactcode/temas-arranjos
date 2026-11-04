@@ -1236,6 +1236,12 @@ function gerarPDF() {
 
 async function gerarPDFDiscursos() {
   if (!discursos.length) { showToast('Nenhum discurso para gerar PDF'); return; }
+
+  // Abre a janela ANTES do await para não ser bloqueada como popup
+  const w = window.open('', '_blank');
+  if (!w) { showToast('Permita popups para gerar o PDF'); return; }
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Carregando…</title></head><body style="font-family:sans-serif;padding:40px;color:#555">Carregando dados…</body></html>');
+
   const sorted = [...discursos].sort((a, b) => a.data.localeCompare(b.data));
   const congNome = document.getElementById('congregacaoSelect')?.selectedOptions[0]?.text || '';
   const hoje = new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' });
@@ -1336,7 +1342,7 @@ ${sections}
 <div class="footer">Gerado pelo Sistema de Arranjos de Discursos</div>
 </body></html>`;
 
-  const w = window.open('', '_blank');
+  w.document.open();
   w.document.write(html);
   w.document.close();
   setTimeout(() => w.print(), 600);
