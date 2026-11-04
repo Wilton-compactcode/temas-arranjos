@@ -5,5 +5,8 @@
   "description": "Sistema web compartilhado para temas e discursos por congregação",
   "scripts": {
     "start": "node server.js"
+  },
+  "devDependencies": {
+    "pg": "^8.23.1"
   }
 }

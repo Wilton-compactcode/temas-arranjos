@@ -485,7 +485,7 @@
   </div>
 </header>
 
-<nav class="tabbar"><button id="tabTemas" class="active" onclick="showTab('temas')">Temas</button><button id="tabDesignacoes" onclick="showTab('designacoes')">Designações</button><button id="tabDiscursos" onclick="showTab('discursos')">Discursos semanais</button><button id="tabCongregacoes" onclick="showTab('congregacoes')">Congregações</button></nav>
+<nav class="tabbar"><button id="tabTemas" class="active" onclick="showTab('temas')">Temas</button><button id="tabDesignacoes" onclick="showTab('designacoes')">Designações</button><button id="tabDiscursos" onclick="showTab('discursos')">Discursos semanais</button><button id="tabCongregacoes" onclick="showTab('congregacoes')">Congregações</button><button onclick="gerarPDF()" style="background:var(--s2);border:1px solid var(--border2);border-radius:10px;padding:10px 13px;color:var(--text2);font:inherit;font-size:13px;cursor:pointer;flex-shrink:0">📄 PDF</button></nav>
 
 <!-- STATS -->
 <div id="temasPanel"><div class="stats" id="statsBar">
@@ -1069,6 +1069,86 @@ function toggleFilter() {
   showOnlyNever = !showOnlyNever;
   document.getElementById('filterBtn').classList.toggle('on', showOnlyNever);
   renderList();
+}
+
+// ── PDF ───────────────────────────────────────────────────────────────────
+function gerarPDF() {
+  const sorted = [...temas].sort((a, b) => Number(a.num) - Number(b.num));
+  const congNome = document.getElementById('congregacaoSelect')?.selectedOptions[0]?.text || '';
+  const hoje = new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' });
+
+  const PRIO_LABEL = { never:'Nunca apresentado', old:'Mais de 3 anos', mid:'2 a 3 anos', ok:'1 a 2 anos', new:'Menos de 1 ano', future:'Futuro' };
+  const PRIO_COLOR_PDF = { never:'#dc2626', old:'#ea580c', mid:'#ca8a04', ok:'#16a34a', new:'#15803d', future:'#7c3aed' };
+
+  const rows = sorted.map((t, i) => {
+    const cor = PRIO_COLOR_PDF[t.prioridade] || '#888';
+    const bg  = i % 2 === 0 ? '#ffffff' : '#f8f9ff';
+    const ult = t.ultima_data_str || '—';
+    const status = PRIO_LABEL[t.prioridade] || '—';
+    return `<tr style="background:${bg}">
+      <td style="width:48px;text-align:center;font-weight:700;color:#1e1e2e;font-size:13px">${esc(t.num)}</td>
+      <td style="font-size:13px;color:#1e1e2e;padding:9px 12px">${esc(t.titulo)}</td>
+      <td style="width:130px;text-align:center;font-size:12px;color:#555">${esc(ult)}</td>
+      <td style="width:140px;text-align:center">
+        <span style="display:inline-block;background:${cor}18;color:${cor};border:1px solid ${cor}44;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:600">${status}</span>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html><html lang="pt-BR"><head>
+<meta charset="UTF-8">
+<title>Lista de Temas — ${esc(congNome)}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Inter',system-ui,sans-serif; background:#fff; color:#1e1e2e; padding:32px 40px; }
+  .cover { display:flex; justify-content:space-between; align-items:flex-end; border-bottom:3px solid #6366f1; padding-bottom:20px; margin-bottom:28px; }
+  .cover-left h1 { font-size:22px; font-weight:700; color:#1e1e2e; letter-spacing:-.3px }
+  .cover-left p  { font-size:13px; color:#6b7399; margin-top:4px }
+  .cover-right   { text-align:right; font-size:12px; color:#6b7399; line-height:1.6 }
+  .badge { display:inline-block; background:#6366f115; color:#6366f1; border:1px solid #6366f144; border-radius:20px; padding:3px 12px; font-size:12px; font-weight:600; margin-bottom:8px }
+  table { width:100%; border-collapse:collapse; border-radius:12px; overflow:hidden; box-shadow:0 1px 8px #0001 }
+  th { background:#6366f1; color:#fff; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.6px; padding:11px 12px; text-align:left }
+  th:first-child { text-align:center; border-radius:0 }
+  td { padding:9px 12px; border-bottom:1px solid #f0f0f8; vertical-align:middle }
+  tr:last-child td { border-bottom:none }
+  .legend { display:flex; flex-wrap:wrap; gap:12px; margin-top:28px; padding-top:16px; border-top:1px solid #e8e8f0 }
+  .legend-item { display:flex; align-items:center; gap:6px; font-size:11px; color:#555 }
+  .dot { width:10px; height:10px; border-radius:50%; flex-shrink:0 }
+  .footer { margin-top:20px; text-align:center; font-size:11px; color:#aaa }
+  @media print {
+    body { padding:16px 20px }
+    @page { margin:12mm 14mm; size:A4 }
+  }
+</style></head><body>
+<div class="cover">
+  <div class="cover-left">
+    <div class="badge">Lista oficial</div>
+    <h1>Temas de Discursos Públicos</h1>
+    <p>Congregação ${esc(congNome)} · ${sorted.length} temas · Ordem crescente</p>
+  </div>
+  <div class="cover-right">Gerado em<br><strong>${hoje}</strong></div>
+</div>
+<table>
+  <thead><tr>
+    <th style="width:48px;text-align:center">Nº</th>
+    <th>Tema</th>
+    <th style="width:130px;text-align:center">Última vez</th>
+    <th style="width:140px;text-align:center">Status</th>
+  </tr></thead>
+  <tbody>${rows}</tbody>
+</table>
+<div class="legend">
+  <span style="font-size:11px;font-weight:600;color:#333;margin-right:4px">Legenda:</span>
+  ${Object.entries(PRIO_COLOR_PDF).map(([k,c])=>`<div class="legend-item"><div class="dot" style="background:${c}"></div>${PRIO_LABEL[k]}</div>`).join('')}
+</div>
+<div class="footer">Gerado pelo Sistema de Arranjos de Discursos</div>
+</body></html>`;
+
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+  setTimeout(() => w.print(), 600);
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────
