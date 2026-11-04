@@ -519,7 +519,7 @@
   <form class="shared-form" onsubmit="addDiscurso(event)">
     <input class="shared-input" id="talkDate" type="date" required aria-label="Data">
     <input class="shared-input" id="talkSpeaker" placeholder="Orador">
-    <div style="display:flex;gap:8px"><input class="shared-input" id="talkNumber" type="number" min="1" placeholder="Nº do tema" style="max-width:120px"><input class="shared-input" id="talkTitle" placeholder="Tema do discurso" required></div>
+    <div style="display:flex;gap:8px"><input class="shared-input" id="talkNumber" type="number" min="1" placeholder="Nº do tema" style="max-width:120px" oninput="autoTitulo(this.value,'talkTitle')"><input class="shared-input" id="talkTitle" placeholder="Tema do discurso" required></div>
     <input class="shared-input" id="talkTime" placeholder="Horário (ex.: 19h)">
     <button class="btn-save" type="submit">Adicionar discurso</button>
   </form><div id="discursosList"></div>
@@ -549,7 +549,7 @@
     <input class="shared-input" id="editDiscTitulo" placeholder="Tema do discurso">
     <input class="shared-input" id="editDiscOrador" placeholder="Orador">
     <div style="display:flex;gap:8px">
-      <input class="shared-input" id="editDiscNumero" type="number" min="1" placeholder="Nº do tema" style="max-width:120px">
+      <input class="shared-input" id="editDiscNumero" type="number" min="1" placeholder="Nº do tema" style="max-width:120px" oninput="autoTitulo(this.value,'editDiscTitulo')">
       <input class="shared-input" id="editDiscHorario" placeholder="Horário">
     </div>
     <select class="shared-input" id="editDiscTipo">
@@ -805,6 +805,12 @@ async function addCongregacao(e) {
   document.getElementById('newCongregacao').value = '';
   document.getElementById('newContato').value = '';
   showToast('Congregação adicionada');
+}
+
+function autoTitulo(num, targetId) {
+  if (!num) return;
+  const tema = temas.find(t => t.num === String(Number(num)));
+  if (tema) document.getElementById(targetId).value = tema.titulo;
 }
 
 let editDiscId = null;
