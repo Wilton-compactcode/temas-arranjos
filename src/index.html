@@ -521,6 +521,11 @@
     <input class="shared-input" id="talkSpeaker" placeholder="Orador">
     <div style="display:flex;gap:8px"><input class="shared-input" id="talkNumber" type="number" min="1" placeholder="Nº do tema" style="max-width:120px" oninput="autoTitulo(this.value,'talkTitle')"><input class="shared-input" id="talkTitle" placeholder="Tema do discurso" required></div>
     <input class="shared-input" id="talkTime" placeholder="Horário (ex.: 19h)">
+    <select class="shared-input" id="talkTipo">
+      <option value="">Sem tipo</option>
+      <option value="RECEBEREMOS">RECEBEREMOS (recebemos orador)</option>
+      <option value="ENVIAREMOS">ENVIAREMOS (enviamos orador)</option>
+    </select>
     <button class="btn-save" type="submit">Adicionar discurso</button>
   </form><div id="discursosList"></div>
 </section>
@@ -895,7 +900,7 @@ async function removeCongregacao(id) {
 
 async function loadDiscursos() {
   const { data, error } = await sb.from('discursos').select('*')
-    .eq('congregacao_id', congregacaoId).order('data', { ascending: false });
+    .eq('congregacao_id', congregacaoId).order('data', { ascending: true });
   if (error) return;
   discursos = data || [];
   const rows = discursos;
@@ -922,6 +927,7 @@ async function addDiscurso(e) {
     numero:  talkNumber.value ? Number(talkNumber.value) : null,
     titulo:  talkTitle.value,
     horario: talkTime.value || null,
+    tipo:    document.getElementById('talkTipo').value || null,
   });
   if (error) { showToast('Não foi possível salvar'); return; }
   e.target.reset();
@@ -1290,35 +1296,46 @@ async function gerarPDFDiscursos() {
     const ano  = dt.getFullYear();
     const mesN = dt.getMonth() + 1;
     const desig = desigIndex[`${ano}-${mesN}`];
+    const tiposMes = [...new Set(itens.map(x => x.tipo).filter(Boolean))];
+    const temEnvio = tiposMes.includes('ENVIAREMOS');
+    const temRecebe = tiposMes.includes('RECEBEREMOS');
+    const seta = temEnvio && temRecebe ? '↔' : temEnvio ? '→' : '←';
     const desigBadge = desig
-      ? `<span style="font-size:11px;font-weight:500;color:#6b7399;margin-left:10px;background:#f0f1fa;border-radius:10px;padding:2px 10px">📍 ${esc(desig)}</span>`
-      : '';
+      ? `<span style="font-size:11px;font-weight:600;color:#6366f1;margin-left:10px;background:#6366f115;border:1px solid #6366f133;border-radius:10px;padding:3px 12px;white-space:nowrap">📍 ${esc(congNome)} ${seta} ${esc(desig)}</span>`
+      : `<span style="font-size:11px;font-weight:500;color:#6b7399;margin-left:10px;background:#f0f1fa;border-radius:10px;padding:2px 10px">📍 ${esc(congNome)}</span>`;
     const rows = itens.map((x, i) => {
       const bg  = i % 2 === 0 ? '#ffffff' : '#f8f9ff';
       const dt  = new Date(x.data + 'T12:00:00').toLocaleDateString('pt-BR', { weekday:'short', day:'2-digit', month:'2-digit' });
       const cor = TIPO_COR[x.tipo] || '#6366f1';
+      let congLabel = '';
+      if (x.tipo === 'ENVIAREMOS' && desig) {
+        congLabel = `<div style="font-size:10px;color:#0ea5e9;margin-top:3px;font-weight:600">${esc(congNome)} → ${esc(desig)}</div>`;
+      } else if (x.tipo === 'RECEBEREMOS' && desig) {
+        congLabel = `<div style="font-size:10px;color:#6366f1;margin-top:3px;font-weight:600">${esc(desig)} → ${esc(congNome)}</div>`;
+      }
       const tipoBadge = x.tipo
         ? `<span style="background:${cor}18;color:${cor};border:1px solid ${cor}44;border-radius:12px;padding:1px 8px;font-size:10px;font-weight:600;white-space:nowrap">${esc(x.tipo)}</span>`
         : '';
       return `<tr style="background:${bg}">
-        <td style="width:90px;font-size:12px;color:#555;white-space:nowrap">${esc(dt)}</td>
+        <td style="width:80px;font-size:12px;color:#555;white-space:nowrap">${esc(dt)}</td>
         <td style="font-size:13px;color:#1e1e2e;padding:9px 12px">
           ${esc(x.titulo || '—')}
           ${x.numero ? `<span style="color:#888;font-size:11px"> · Nº ${x.numero}</span>` : ''}
+          ${congLabel}
         </td>
-        <td style="width:140px;font-size:12px;color:#333">${esc(x.orador || '—')}</td>
-        <td style="width:60px;font-size:12px;color:#555;text-align:center">${esc(x.horario || '—')}</td>
-        <td style="width:120px;text-align:center">${tipoBadge}</td>
+        <td style="width:130px;font-size:12px;color:#333">${esc(x.orador || '—')}</td>
+        <td style="width:55px;font-size:12px;color:#555;text-align:center">${esc(x.horario || '—')}</td>
+        <td style="width:110px;text-align:center">${tipoBadge}</td>
       </tr>`;
     }).join('');
     return `<div class="mes-header">${esc(mes.charAt(0).toUpperCase() + mes.slice(1))}${desigBadge}</div>
     <table>
       <thead><tr>
-        <th style="width:90px">Data</th>
+        <th style="width:80px">Data</th>
         <th>Tema</th>
-        <th style="width:140px">Orador</th>
-        <th style="width:60px;text-align:center">Horário</th>
-        <th style="width:120px;text-align:center">Tipo</th>
+        <th style="width:130px">Orador</th>
+        <th style="width:55px;text-align:center">Horário</th>
+        <th style="width:110px;text-align:center">Tipo</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
