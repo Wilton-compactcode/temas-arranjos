@@ -1267,6 +1267,8 @@
       showToast(error ? 'Não foi possível salvar' : 'Designação salva');
     }
 
+    const HOME_CONG = 'Barro Branco';
+
     async function loadCongregacoes() {
       const { data, error } = await sb.from('congregacoes').select('id,nome,contato').order('nome');
       if (error) {
@@ -1276,9 +1278,21 @@
        <div class="placeholder-sub">${esc(String(error?.message || error))}</div></div>`;
         return;
       }
-      congregacoes = data || [];
+      // Put home congregation first
+      const all = data || [];
+      const homeIdx = all.findIndex(c => c.nome === HOME_CONG);
+      if (homeIdx > 0) all.unshift(all.splice(homeIdx, 1)[0]);
+      congregacoes = all;
+
       const sel = document.getElementById('congregacaoSelect');
       sel.innerHTML = congregacoes.map(c => `<option value="${c.id}">${esc(c.nome)}</option>`).join('');
+
+      // If no URL param set, default to home congregation
+      const urlCong = new URLSearchParams(location.search).get('cong');
+      if (!urlCong) {
+        const home = congregacoes.find(c => c.nome === HOME_CONG);
+        if (home) congregacaoId = home.id;
+      }
       if (congregacoes.some(c => c.id === congregacaoId)) sel.value = congregacaoId;
       else congregacaoId = Number(sel.value) || congregacoes[0]?.id || 1;
       document.getElementById('congregacoesList').innerHTML = congregacoes.map(c =>
