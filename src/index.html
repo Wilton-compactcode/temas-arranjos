@@ -511,10 +511,18 @@
 </div>
 
 <section id="discursosPanel" class="shared-panel" hidden>
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
     <h2>Discursos semanais</h2>
-    <button onclick="gerarPDFDiscursos()" style="background:var(--s2);border:1px solid var(--border2);border-radius:10px;padding:8px 14px;color:var(--text2);font:inherit;font-size:13px;cursor:pointer">📄 PDF</button>
+    <div style="display:flex;gap:6px">
+      <button onclick="gerarPDFMes()" style="background:var(--accent);border:none;border-radius:10px;padding:8px 14px;color:#fff;font:inherit;font-size:13px;cursor:pointer;font-weight:600">📄 PDF do mês</button>
+      <button onclick="gerarPDFDiscursos()" style="background:var(--s2);border:1px solid var(--border2);border-radius:10px;padding:8px 14px;color:var(--text2);font:inherit;font-size:13px;cursor:pointer">📄 Todos</button>
+    </div>
   </div>
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
+    <input type="month" id="filtroMesAno" class="shared-input" style="max-width:200px" onchange="renderDiscursosFiltro()" aria-label="Filtrar por mês">
+    <button onclick="document.getElementById('filtroMesAno').value='';renderDiscursosFiltro()" style="background:transparent;border:1px solid var(--border2);border-radius:8px;padding:8px 12px;color:var(--text2);font:inherit;font-size:12px;cursor:pointer;white-space:nowrap">Ver todos</button>
+  </div>
+  <div id="discursosMesInfo"></div>
   <p class="shared-note">Agenda compartilhada da congregação selecionada.</p>
   <form class="shared-form" onsubmit="addDiscurso(event)">
     <input class="shared-input" id="talkDate" type="date" required aria-label="Data">
@@ -671,6 +679,7 @@ const PRIO_COLOR = {
 // ── State ─────────────────────────────────────────────────────────────────
 let temas         = [];
 let discursos     = [];
+let _desigCache   = {};
 let activeNum     = null;
 let showOnlyNever = false;
 let searchTerm    = '';
@@ -903,19 +912,60 @@ async function loadDiscursos() {
     .eq('congregacao_id', congregacaoId).order('data', { ascending: true });
   if (error) return;
   discursos = data || [];
-  const rows = discursos;
+
+  // Build designation cache: "ano-mes" -> congregation name
+  const anos = [...new Set(discursos.map(d => new Date(d.data + 'T12:00:00').getFullYear()))];
+  if (anos.length) {
+    const { data: desigData } = await sb.from('designacoes')
+      .select('ano,mes,congregacao_id').in('ano', anos);
+    const congMap = Object.fromEntries(congregacoes.map(c => [c.id, c.nome]));
+    _desigCache = {};
+    for (const d of (desigData || [])) {
+      _desigCache[`${d.ano}-${d.mes}`] = congMap[d.congregacao_id] || '';
+    }
+  } else {
+    _desigCache = {};
+  }
+
+  renderDiscursosFiltro();
+}
+
+function renderDiscursosFiltro() {
+  const filtro = document.getElementById('filtroMesAno')?.value || '';
+  const rows = filtro ? discursos.filter(x => x.data.startsWith(filtro)) : discursos;
+
+  // Show month info banner when filtered
+  const infoEl = document.getElementById('discursosMesInfo');
+  if (filtro && infoEl) {
+    const [ano, mes] = filtro.split('-').map(Number);
+    const desig = _desigCache[`${ano}-${mes}`];
+    const congNome = document.getElementById('congregacaoSelect')?.selectedOptions[0]?.text || '';
+    if (desig) {
+      infoEl.innerHTML = `<div style="background:var(--acc-dim);border:1px solid var(--accent);border-radius:12px;padding:12px 16px;margin-bottom:12px;font-size:13px;font-weight:600;color:var(--text)">
+        📍 ${esc(congNome)} ↔ ${esc(desig)}
+      </div>`;
+    } else {
+      infoEl.innerHTML = '';
+    }
+  } else if (infoEl) {
+    infoEl.innerHTML = '';
+  }
+
   document.getElementById('discursosList').innerHTML = rows.length
-    ? rows.map(x=>`<div class="shared-row">
-        <div style="min-width:0;flex:1">
-          <strong>${esc(x.titulo||x.orador||'Sem tema informado')}</strong>
-          <small>${new Date(x.data+'T12:00:00').toLocaleDateString('pt-BR')}${x.tipo?' · '+esc(x.tipo):''} · ${esc(x.orador||'Orador não informado')}${x.numero?' · Nº '+x.numero:''}${x.horario?' · '+esc(x.horario):''}</small>
-        </div>
-        <div style="display:flex;gap:6px;flex-shrink:0">
-          <button class="remove-btn" style="color:var(--accent);border-color:var(--border2)" onclick="openEditDiscurso(${x.id})">Editar</button>
-          <button class="remove-btn" onclick="removeDiscurso(${x.id})">Excluir</button>
-        </div>
-      </div>`).join('')
-    : '<p class="shared-note">Nenhum discurso cadastrado.</p>';
+    ? rows.map(x => {
+        const tipoColor = x.tipo === 'ENVIAREMOS' ? '#0ea5e9' : x.tipo === 'RECEBEREMOS' ? 'var(--accent)' : 'var(--text2)';
+        return `<div class="shared-row">
+          <div style="min-width:0;flex:1">
+            <strong>${esc(x.titulo||x.orador||'Sem tema informado')}</strong>
+            <small>${new Date(x.data+'T12:00:00').toLocaleDateString('pt-BR')}${x.tipo?` · <span style="color:${tipoColor};font-weight:600">${esc(x.tipo)}</span>`:''} · ${esc(x.orador||'Orador não informado')}${x.numero?' · Nº '+x.numero:''}${x.horario?' · '+esc(x.horario):''}</small>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button class="remove-btn" style="color:var(--accent);border-color:var(--border2)" onclick="openEditDiscurso(${x.id})">Editar</button>
+            <button class="remove-btn" onclick="removeDiscurso(${x.id})">Excluir</button>
+          </div>
+        </div>`;
+      }).join('')
+    : `<p class="shared-note">${filtro ? 'Nenhum discurso neste mês.' : 'Nenhum discurso cadastrado.'}</p>`;
 }
 
 async function addDiscurso(e) {
@@ -1184,6 +1234,109 @@ function abrirIframePrint(html) {
   iframe.contentDocument.open();
   iframe.contentDocument.write(html);
   iframe.contentDocument.close();
+}
+
+async function gerarPDFMes() {
+  const filtro = document.getElementById('filtroMesAno')?.value;
+  if (!filtro) { showToast('Selecione um mês primeiro'); return; }
+
+  const [ano, mesN] = filtro.split('-').map(Number);
+  const rows = discursos.filter(x => x.data.startsWith(filtro));
+  if (!rows.length) { showToast('Nenhum discurso neste mês'); return; }
+
+  const congNome = document.getElementById('congregacaoSelect')?.selectedOptions[0]?.text || '';
+  const desig = _desigCache[`${ano}-${mesN}`] || '';
+  const hoje = new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' });
+  const mesTitulo = new Date(ano, mesN - 1, 1).toLocaleDateString('pt-BR', { month:'long', year:'numeric' });
+  const TIPO_COR = { 'RECEBEREMOS': '#6366f1', 'ENVIAREMOS': '#0ea5e9' };
+
+  const tiposMes = [...new Set(rows.map(x => x.tipo).filter(Boolean))];
+  const temEnvio = tiposMes.includes('ENVIAREMOS');
+  const temRecebe = tiposMes.includes('RECEBEREMOS');
+  const seta = temEnvio && temRecebe ? '↔' : temEnvio ? '→' : '←';
+
+  const tableRows = rows.map((x, i) => {
+    const bg  = i % 2 === 0 ? '#ffffff' : '#f8f9ff';
+    const dtStr = new Date(x.data + 'T12:00:00').toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'2-digit' });
+    const cor = TIPO_COR[x.tipo] || '#6366f1';
+    let direcao = '';
+    if (x.tipo === 'ENVIAREMOS' && desig) direcao = `<div style="font-size:10px;color:#0ea5e9;font-weight:600;margin-top:2px">${esc(congNome)} → ${esc(desig)}</div>`;
+    else if (x.tipo === 'RECEBEREMOS' && desig) direcao = `<div style="font-size:10px;color:#6366f1;font-weight:600;margin-top:2px">${esc(desig)} → ${esc(congNome)}</div>`;
+    const tipoBadge = x.tipo
+      ? `<span style="background:${cor}18;color:${cor};border:1px solid ${cor}44;border-radius:12px;padding:2px 10px;font-size:11px;font-weight:600">${esc(x.tipo)}</span>`
+      : '';
+    return `<tr style="background:${bg}">
+      <td style="width:160px;font-size:12px;color:#555;white-space:nowrap;text-transform:capitalize">${esc(dtStr)}</td>
+      <td style="font-size:13px;color:#1e1e2e;padding:10px 14px">
+        <div style="font-weight:600">${esc(x.titulo || '—')}</div>
+        ${x.numero ? `<div style="color:#888;font-size:11px">Tema Nº ${x.numero}</div>` : ''}
+        ${direcao}
+      </td>
+      <td style="width:160px;font-size:12px;color:#333">${esc(x.orador || '—')}</td>
+      <td style="width:70px;font-size:12px;color:#555;text-align:center">${esc(x.horario || '—')}</td>
+      <td style="width:130px;text-align:center">${tipoBadge}</td>
+    </tr>`;
+  }).join('');
+
+  const congBlock = desig
+    ? `<div style="display:flex;align-items:center;gap:0;margin:24px 0;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px #0001">
+        <div style="flex:1;background:#6366f1;color:#fff;padding:18px 22px;text-align:center">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;opacity:.8;margin-bottom:4px">Nossa congregação</div>
+          <div style="font-size:17px;font-weight:700">${esc(congNome)}</div>
+        </div>
+        <div style="background:#e8e9ff;color:#6366f1;padding:18px 16px;font-size:22px;font-weight:700">${seta}</div>
+        <div style="flex:1;background:#f0f4ff;color:#1e1e2e;padding:18px 22px;text-align:center">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#6b7399;margin-bottom:4px">Congregação designada</div>
+          <div style="font-size:17px;font-weight:700">${esc(desig)}</div>
+        </div>
+      </div>`
+    : `<div style="background:#f0f1fa;border-radius:12px;padding:14px 18px;margin:20px 0;font-size:13px;color:#6b7399">Sem congregação designada registrada para este mês.</div>`;
+
+  const html = `<!DOCTYPE html><html lang="pt-BR"><head>
+<meta charset="UTF-8">
+<title>Arranjo — ${esc(mesTitulo.charAt(0).toUpperCase() + mesTitulo.slice(1))}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Inter',system-ui,sans-serif; background:#fff; color:#1e1e2e; padding:32px 40px; }
+  .cover { display:flex; justify-content:space-between; align-items:flex-end; border-bottom:3px solid #6366f1; padding-bottom:20px; margin-bottom:4px; }
+  .cover-left h1 { font-size:22px; font-weight:700; letter-spacing:-.3px; text-transform:capitalize }
+  .cover-left p  { font-size:13px; color:#6b7399; margin-top:4px }
+  .cover-right   { text-align:right; font-size:12px; color:#6b7399; line-height:1.6 }
+  .badge { display:inline-block; background:#6366f115; color:#6366f1; border:1px solid #6366f144; border-radius:20px; padding:3px 12px; font-size:12px; font-weight:600; margin-bottom:8px }
+  table { width:100%; border-collapse:collapse; border-radius:12px; overflow:hidden; box-shadow:0 1px 8px #0001 }
+  th { background:#6366f1; color:#fff; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.6px; padding:11px 14px; text-align:left }
+  td { padding:10px 14px; border-bottom:1px solid #f0f0f8; vertical-align:middle }
+  tr:last-child td { border-bottom:none }
+  .footer { margin-top:28px; text-align:center; font-size:11px; color:#aaa; border-top:1px solid #eee; padding-top:14px }
+  @media print {
+    body { padding:14px 18px }
+    @page { margin:10mm 12mm; size:A4 }
+  }
+</style></head><body>
+<div class="cover">
+  <div class="cover-left">
+    <div class="badge">Arranjo mensal</div>
+    <h1>${esc(mesTitulo)}</h1>
+    <p>${rows.length} discurso${rows.length !== 1 ? 's' : ''} registrado${rows.length !== 1 ? 's' : ''}</p>
+  </div>
+  <div class="cover-right">Gerado em<br><strong>${hoje}</strong></div>
+</div>
+${congBlock}
+<table>
+  <thead><tr>
+    <th style="width:160px">Data</th>
+    <th>Tema</th>
+    <th style="width:160px">Orador</th>
+    <th style="width:70px;text-align:center">Horário</th>
+    <th style="width:130px;text-align:center">Tipo</th>
+  </tr></thead>
+  <tbody>${tableRows}</tbody>
+</table>
+<div class="footer">Gerado pelo Sistema de Arranjos de Discursos</div>
+</body></html>`;
+
+  abrirIframePrint(html);
 }
 
 function gerarPDF() {
